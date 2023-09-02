@@ -49,7 +49,7 @@
         .then(data => { // the server will respond with an array of message objects in JSON format
           data.sort((a, b) => a.timestamp - b.timestamp); // sort messages by timestamp in ascending order
           const messagesHtml = data.map(generateMessageHtml).map(html => html.outerHTML); // convert each message to html and then to string (outerHTML property)
-          document.getElementById("messages").setHTML(messagesHtml.join("")); // replace any currently-displayed message html with these new ones by converting array of messages into a single string of html // https://developer.mozilla.org/en-US/docs/Web/API/Element/setHTML
+          document.getElementById("messages").innerHTML = messagesHtml.join(""); // replace any currently-displayed message html with these new ones by converting array of messages into a single string of html
         })
         .catch(error => console.error("Error getting messages:", error)) // if the server responds with an error, print the error to the console
         .finally(() => setTimeout(repeatedlyGetMessages, DELAY)); // run this function again after DELAY milliseconds regardless of whether the GET request was successful or not
