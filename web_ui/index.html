@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Rest API Tutorial</title>
+</head>
+
+<body>
+  <h1>Start chatting</h1>
+
+  <form action="" id="message_form">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required="true" />
+
+    <br><br>
+
+    <label for="message">Message:</label>
+    <input type="text" id="message" name="message" required="true" />
+
+    <br><br>
+
+    <input type="submit" id="send_button" value="Send">
+  </form>
+
+  <br><br>
+
+  <h1>Messages</h1>
+
+  <div id="messages">
+    <!-- messages from the API server will be inserted here by the code below (repeatedlyGetMessages function) -->
+  </div>
+
+  <script>
+
+    // const IP = "147.182.235.242", // digital ocean droplet/server IP string
+    const IP = "localhost", // IP string when running on local PC
+      PORT = 42069, // API server port
+      URI = "http://" + IP + ":" + PORT + "/messages", // the address of the api server
+      DELAY = 2000; // milliseconds
+
+    repeatedlyGetMessages(); // run the repeatedlyGetMessages function when the page loads
+    document.getElementById("message_form").addEventListener("submit", submitForm); // run the submitForm function when the Send button is clicked
+
+    async function repeatedlyGetMessages() {
+      console.log("Getting messages...");
+
+      fetch(URI) // send a GET request to get all messages from the API server
+        .then(response => response.json()) // convert the response body to JSON
+        .then(data => { // the server will respond with an array of message objects in JSON format
+          data.sort((a, b) => a.timestamp - b.timestamp); // sort messages by timestamp in ascending order
+          const messagesHtml = data.map(generateMessageHtml).map(html => html.outerHTML); // convert each message to html and then to string (outerHTML property)
+          document.getElementById("messages").setHTML(messagesHtml.join("")); // replace any currently-displayed message html with these new ones by converting array of messages into a single string of html // https://developer.mozilla.org/en-US/docs/Web/API/Element/setHTML
+        })
+        .catch(error => console.error("Error getting messages:", error)) // if the server responds with an error, print the error to the console
+        .finally(() => setTimeout(repeatedlyGetMessages, DELAY)); // run this function again after DELAY milliseconds regardless of whether the GET request was successful or not
+    }
+
+    async function submitForm(event) {
+      event.preventDefault(); // prevent reloading page after submitting the form
+
+      const btnSend = document.getElementById('send_button'); // get send button html element
+      btnSend.disabled = true; // prevent user from submitting another message while the previous one is being sent
+
+      const jsonFormData = buildJsonFormData(event.target); // build JSON body from form data
+      console.log("Sending message:", jsonFormData);
+
+      // create html to display the message temporarily until the server responds
+      const tmpMessageHtml = generateMessageHtml(jsonFormData);
+      document.getElementById("messages").appendChild(tmpMessageHtml); // add the message html to the bottom of the messages div
+
+      // the API server will create a new message if we send it a post request with JSON body of the form { username: "username", message: "message" }
+      const requestOptions = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jsonFormData) // convert the json object to a string
+      };
+
+
+      fetch(URI, requestOptions) // send the POST request to the API server to create the message
+        .then(response => response.json()) // convert the response body to JSON
+        .then(data => { // the server will respond with a message object which means the message was successfully created
+          console.log("Response after sending message:", data);
+
+          const messageInput = document.getElementById('message'); // get message input html element
+          messageInput.value = ""; // clear the message input's text so that the user can enter a new message
+
+          const messageHtml = generateMessageHtml(data); // recreate the message html using the server's response
+          document.getElementById("messages").appendChild(messageHtml); // add the message html to the bottom of the messages div
+        })
+        .catch(error => { // if the server responds with an error, it means the message was not successfully created
+          console.error("Error sending message:", error); // print the error to the console
+          alert("An error occured. Message was not sent"); // alert the user that there was an error when sending the message
+          // do not clear the message input's text so that the user can try sending the message again
+        })
+        .finally(() => { // this code will run whether the request was successful or not
+          btnSend.disabled = false; // allow the user to submit another message
+          tmpMessageHtml.remove(); // remove the temporary message
+        });
+    }
+
+    function buildJsonFormData(form) {
+      const jsonFormData = {}; // this empty object will hold the form data in JSON format
+
+      // loop through each form input and add it to the json object
+      // the json object will have the form { key: value } where key is the value of pair[0] and value is the value of pair[1]
+      // eg [["username", "user's name"], ["message", "user's message"]] gets converted to { username: "user's name", message: "user's message" }
+      for (const pair of new FormData(form)) jsonFormData[pair[0]] = pair[1];
+      return jsonFormData;
+    }
+
+    function generateMessageHtml({ username, message, timestamp }) {
+      // messages received from the server have a timestamp field included
+      // temporary messages (ie messages that are still being sent to the API server) created by the code above do not have a timestamp field
+      // so we can use the presence of the timestamp field to determine whether the message is temporary or not
+      // a temporary message must be displayed with grey text to show the user that the message has not yet been created in the API server
+      // a message received from the API server must be displayed with black text to show the user that the message has been successfully created in the API server
+
+      const color = timestamp ? "black" : "grey";
+
+      // create html element for the username
+      const usernameHtml = document.createElement("span");
+      usernameHtml.style.color = color;
+      usernameHtml.innerHTML = "<b>" + username + ": </b>";
+
+      // create html element for the message
+      const messageHtml = document.createElement("span");
+      messageHtml.style.color = color;
+      messageHtml.innerText = message;
+
+      // create html element for the timestamp
+      const timestampHtml = document.createElement("p");
+      timestampHtml.style.color = color;
+      timestampHtml.innerText = timestamp ?? null;
+
+      // create html element for the parent element that will contain the username, message and timestamp
+      const parentHtml = document.createElement("div");
+      parentHtml.style.border = "1px solid black";
+      parentHtml.appendChild(usernameHtml);
+      parentHtml.appendChild(messageHtml);
+      parentHtml.appendChild(timestampHtml);
+
+      return parentHtml;
+    }
+
+  </script>
+</body>
+
+</html>

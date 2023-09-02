@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">rest_api_client</string>
+    <string name="title_activity_main">Start Chatting</string>
+</resources>
